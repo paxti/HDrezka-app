@@ -28,7 +28,7 @@
                     android:textColor="@color/text_color"
                     android:textSize="@dimen/normal_text" />
 
-                <com.falcofemoralis.hdrezkaapp.views.elements.RadioGridGroup
+                <com.paxti.hdrezkaapp.views.elements.RadioGridGroup
                     android:id="@+id/film_sort"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -90,7 +90,7 @@
                         android:textSize="@dimen/normal_text"
                         android:layout_columnWeight="1" />
 
-                </com.falcofemoralis.hdrezkaapp.views.elements.RadioGridGroup>
+                </com.paxti.hdrezkaapp.views.elements.RadioGridGroup>
             </LinearLayout>
 
             <LinearLayout
@@ -106,7 +106,7 @@
                     android:textColor="@color/white"
                     android:textSize="@dimen/normal_text" />
 
-                <com.falcofemoralis.hdrezkaapp.views.elements.RadioGridGroup
+                <com.paxti.hdrezkaapp.views.elements.RadioGridGroup
                     android:columnCount="2"
                     android:id="@+id/film_types"
                     android:layout_width="match_parent"
@@ -158,7 +158,7 @@
                         android:text="@string/anime"
                         android:textColor="@color/text_color"
                         android:textSize="@dimen/normal_text" />
-                </com.falcofemoralis.hdrezkaapp.views.elements.RadioGridGroup>
+                </com.paxti.hdrezkaapp.views.elements.RadioGridGroup>
             </LinearLayout>
 
         </LinearLayout>

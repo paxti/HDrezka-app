@@ -16,7 +16,7 @@
 
             <view
                 android:id="@+id/comment_editor_et_new_comment"
-                class="com.falcofemoralis.hdrezkaapp.views.elements.CommentEditor$CommentEditorEditText"
+                class="com.paxti.hdrezkaapp.views.elements.CommentEditor$CommentEditorEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"

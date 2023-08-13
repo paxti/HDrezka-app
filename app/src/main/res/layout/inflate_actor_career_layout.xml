@@ -24,11 +24,11 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/career_films"
-        android:name="com.falcofemoralis.onlinefilmstracker.fragments.ActorFragment"
+        android:name="com.paxti.onlinefilmstracker.fragments.ActorFragment"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        tools:context="com.falcofemoralis.hdrezkaapp.views.fragments.ActorFragment"
+        tools:context="com.paxti.hdrezkaapp.views.fragments.ActorFragment"
         tools:listitem="@layout/inflate_film" />
 
 </LinearLayout>

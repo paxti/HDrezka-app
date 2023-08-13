@@ -191,11 +191,9 @@
     <string name="server_error_503">Сервер не готов обработать запрос</string>
     <string name="isAltLoading_title">Альтернативная загрузка данных</string>
     <string name="isAltLoading_hint">Активируйте если ничего не грузится! Возможно поможет</string>
-    <string name="series_update">Обновления</string>
     <string name="series_update_hot">Горячие обновления сериалов</string>
     <string name="announce">В ожидании</string>
     <string name="watch_all">Все обновления</string>
-    <string name="updates_for_register_only">Персональные обновления доступны только авторизированным пользователям</string>
     <string name="no_updates">Новых обновлений нету</string>
     <string name="wait">Идет загрузка…</string>
     <string name="newest_films_sort_default">Сортировка главного экрана</string>
@@ -207,7 +205,6 @@
     <string name="tv_devices">•для телевизоров\n•для приставок</string>
     <string name="mobile_devices">•для смартфонов\n•для планшетов</string>
     <string name="to_tv">Перейти в ТВ версию</string>
-    <string name="to_mobile">Перейти в мобильную версию</string>
     <string name="your_url">Ваш URL:</string>
     <string name="blocked_in_region">К сожалению, это видео не доступно в вашем регионе</string>
     <string name="update_to">Обновить</string>
@@ -219,7 +216,7 @@
     <string name="genres">Жанры</string>
     <string name="default_provider">https://hdrzk.org</string>
     <string name="init_hint_title">О приложении</string>
-    <string name="init_hint_msg">Данное приложение является неофициальным и администрация сайта резки не имеет никакого отношение к нему! Подробнее можно узнать на форуме 4pda.\n\nСлава Україні!\n\nПутин и его свита убивают мирное население (https://t.me/verkhovnaradaofukraine) на войне в Украине\n#stopputin</string>
+    <string name="init_hint_msg">\n\nСлава Україні!\n\n</string>
     <string name="default_useragent">AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36</string>
     <string name="useragent_hint">Возможность изменить поле useragent в запросе</string>
     <string name="useragent_title">Поле Useragent</string>

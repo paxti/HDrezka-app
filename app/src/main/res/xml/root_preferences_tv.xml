@@ -155,13 +155,6 @@
             app:summary="@string/useragent_hint"
             app:title="@string/useragent_title" />
 
-        <Preference
-            android:icon="@drawable/ic_baseline_mobile"
-            android:key="changeToMobile"
-            android:summary="@string/to_mobile"
-            android:layout="@layout/custom_preference"
-            app:title="@string/change_to_mobile" />
-
     </PreferenceCategory>
 
     <Preference

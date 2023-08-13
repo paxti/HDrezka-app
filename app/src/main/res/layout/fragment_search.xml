@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    tools:context="com.falcofemoralis.hdrezkaapp.views.fragments.SearchFragment">
+    tools:context="com.paxti.hdrezkaapp.views.fragments.SearchFragment">
 
     <FrameLayout
         android:layout_marginStart="@dimen/search_margin"

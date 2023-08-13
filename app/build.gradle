@@ -10,7 +10,7 @@ android {
     buildToolsVersion "30.0.3"
 
     defaultConfig {
-        applicationId "com.falcofemoralis.hdrezkaapp"
+        applicationId "com.paxti.hdrezkaapp"
         minSdkVersion 23
         targetSdkVersion 31
         versionCode 36 // 25 for 2.1.1
