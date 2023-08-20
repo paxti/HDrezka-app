@@ -1,7 +1,7 @@
 package com.paxti.hdrezkaapp.objects
 
 data class WatchLater(
-    val id: String,
+    var id: String,
     val date: String,
     val filmLInk: String,
     val name: String,

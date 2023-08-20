@@ -2,6 +2,7 @@ package com.paxti.hdrezkaapp.views.fragments
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,6 +19,8 @@ import com.paxti.hdrezkaapp.interfaces.IConnection
 import com.paxti.hdrezkaapp.interfaces.IMsg
 import com.paxti.hdrezkaapp.interfaces.IProgressState
 import com.paxti.hdrezkaapp.interfaces.OnFragmentInteractionListener
+import com.paxti.hdrezkaapp.models.AppDatabase
+import com.paxti.hdrezkaapp.db.WatchLaterEntity
 import com.paxti.hdrezkaapp.objects.Film
 import com.paxti.hdrezkaapp.objects.SettingsData
 import com.paxti.hdrezkaapp.objects.UserData
@@ -28,6 +31,8 @@ import com.paxti.hdrezkaapp.utils.FragmentOpener
 import com.paxti.hdrezkaapp.views.adapters.WatchLaterRecyclerViewAdapter
 import com.paxti.hdrezkaapp.views.tv.NavigationMenu
 import com.paxti.hdrezkaapp.views.viewsInterface.WatchLaterView
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 
 class WatchLaterFragment : Fragment(), WatchLaterView {
     private lateinit var currentView: View
@@ -37,10 +42,12 @@ class WatchLaterFragment : Fragment(), WatchLaterView {
     private lateinit var progressBar: ProgressBar
     private lateinit var msgView: TextView
     private lateinit var scrollView: NestedScrollView
+    private lateinit var db: AppDatabase
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
         fragmentListener = context as OnFragmentInteractionListener
+        db = AppDatabase.getDatabase(context)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -67,13 +74,10 @@ class WatchLaterFragment : Fragment(), WatchLaterView {
             }
         })
 
-        if (UserData.isLoggedIn == true) {
-            listView.layoutManager = LinearLayoutManager(context)
-            watchLaterPresenter = WatchLaterPresenter(this)
-            watchLaterPresenter.initList()
-        } else {
-            showMsg(IMsg.MsgType.NOT_AUTHORIZED)
-        }
+        listView.layoutManager = LinearLayoutManager(context)
+        watchLaterPresenter = WatchLaterPresenter(this)
+        watchLaterPresenter.initList(db)
+
 
         return currentView
     }
@@ -82,9 +86,7 @@ class WatchLaterFragment : Fragment(), WatchLaterView {
         listView.adapter = WatchLaterRecyclerViewAdapter(requireContext(), list, ::listCallback, ::deleteWatchLater)
         progressBar.visibility = View.GONE
 
-        if(SettingsData.deviceType == DeviceType.TV) {
-            NavigationMenu.isLocked = false
-        }
+        NavigationMenu.isLocked = false
     }
 
     private fun listCallback(film: Film) {

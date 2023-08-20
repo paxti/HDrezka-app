@@ -1,12 +1,12 @@
 package com.paxti.hdrezkaapp.presenters
 
+import android.util.Log
 import com.paxti.hdrezkaapp.constants.AdapterAction
-import com.paxti.hdrezkaapp.constants.DeviceType
 import com.paxti.hdrezkaapp.interfaces.IMsg
 import com.paxti.hdrezkaapp.interfaces.IProgressState
 import com.paxti.hdrezkaapp.models.FilmModel
-import com.paxti.hdrezkaapp.models.WatchLaterModel
-import com.paxti.hdrezkaapp.objects.SettingsData
+import com.paxti.hdrezkaapp.db.toWatchLater
+import com.paxti.hdrezkaapp.models.AppDatabase
 import com.paxti.hdrezkaapp.objects.WatchLater
 import com.paxti.hdrezkaapp.utils.ExceptionHelper.catchException
 import com.paxti.hdrezkaapp.views.viewsInterface.WatchLaterView
@@ -19,11 +19,18 @@ class WatchLaterPresenter(private val watchLaterView: WatchLaterView) {
     private var loadedWatchLaterList: ArrayList<WatchLater> = ArrayList()
     private var activeWatchLaterList: ArrayList<WatchLater> = ArrayList()
     private val ITEMS_PER_PAGE = 9
+    private lateinit var db: AppDatabase
 
-    fun initList() {
+    fun initList(database: AppDatabase) {
         GlobalScope.launch {
             try {
-                loadedWatchLaterList = WatchLaterModel.getWatchLaterList()
+                db = database;
+                var data = db.watchLaterDAO()?.getAll()
+                Log.d("TAG", data?.size.toString())
+                if (data != null) {
+                    loadedWatchLaterList = ArrayList(data.map { it.toWatchLater() })
+                }
+
 
                 withContext(Dispatchers.Main) {
                     activeWatchLaterList.clear()
@@ -86,21 +93,14 @@ class WatchLaterPresenter(private val watchLaterView: WatchLaterView) {
 
     fun updateList() {
         activeWatchLaterList.clear()
-        initList()
     }
 
     fun deleteWatchLaterItem(id: String) {
         GlobalScope.launch {
             try {
-                WatchLaterModel.removeItem(id)
-                // activeWatchLaterList.removeAt(pos)
-
+                db.watchLaterDAO()?.removeFromWatchLater(id);
                 withContext(Dispatchers.Main) {
-                    val onItemsDownload = if (SettingsData.deviceType == DeviceType.MOBILE) {
-                        7
-                    } else {
-                        4
-                    }
+                    val onItemsDownload = 4
 
                     if (activeWatchLaterList.size <= onItemsDownload) {
                         getNextWatchLater()

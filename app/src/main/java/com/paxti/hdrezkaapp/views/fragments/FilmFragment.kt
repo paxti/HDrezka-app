@@ -21,6 +21,7 @@ import android.text.TextPaint
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.util.DisplayMetrics
+import android.util.Log
 import android.util.TypedValue
 import android.view.*
 import android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
@@ -62,10 +63,17 @@ import com.paxti.hdrezkaapp.views.tv.player.PlayerActivity
 import com.paxti.hdrezkaapp.views.viewsInterface.FilmView
 import com.github.aakira.expandablelayout.ExpandableLinearLayout
 import com.google.android.exoplayer2.metadata.icy.IcyHeaders
+import com.paxti.hdrezkaapp.db.WatchLaterEntity
+import com.paxti.hdrezkaapp.models.AppDatabase
 import com.squareup.picasso.Callback
 import com.squareup.picasso.Picasso
 import com.willy.ratingbar.ScaleRatingBar
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.io.File
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Date
 
 
 class FilmFragment : Fragment(), FilmView {
@@ -83,10 +91,13 @@ class FilmFragment : Fragment(), FilmView {
     private var bookmarksDialog: AlertDialog? = null
     private var wl: PowerManager.WakeLock? = null
     private var isWebviewInstalled = true
+    private lateinit var db: AppDatabase
+
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
         fragmentListener = context as OnFragmentInteractionListener
+        db = AppDatabase.getDatabase(context)
     }
 
     override fun onDestroy() {
@@ -298,6 +309,16 @@ class FilmFragment : Fragment(), FilmView {
             }
 
             openPlayBtn.setOnClickListener {
+
+                GlobalScope.launch {
+                    var film = filmPresenter.film
+                    val current = LocalDateTime.now()
+                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                    val formatted = current.format(formatter)
+                    var filmToSave: WatchLaterEntity = WatchLaterEntity(film.filmId.toString(), formatted, film.filmLink!!, film.origTitle!!, film.subInfo!!, film.additionalInfo, film.posterPath!!)
+                    db.watchLaterDAO()?.insertWatchLater(filmToSave)
+                }
+
                 when (PackageManager.PERMISSION_GRANTED) {
                     ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) -> {
                         filmPresenter.showTranslations(false)
@@ -1116,7 +1137,6 @@ class FilmFragment : Fragment(), FilmView {
 
     override fun openStream(stream: Stream, filmTitle: String, title: String, isDownload: Boolean, translation: Voice) {
         val url = stream.url.replace("#EXT-X-STREAM-INF:", "")
-
         fun initStream(subtitle: Subtitle?) {
             if (isDownload) {
                 val manager: DownloadManager? = requireActivity().getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager?

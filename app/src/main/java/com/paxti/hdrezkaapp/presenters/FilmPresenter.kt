@@ -2,10 +2,7 @@ package com.paxti.hdrezkaapp.presenters
 
 import android.widget.ImageView
 import com.paxti.hdrezkaapp.interfaces.IConnection
-import com.paxti.hdrezkaapp.models.ActorModel
-import com.paxti.hdrezkaapp.models.BookmarksModel
-import com.paxti.hdrezkaapp.models.CommentsModel
-import com.paxti.hdrezkaapp.models.FilmModel
+import com.paxti.hdrezkaapp.models.*
 import com.paxti.hdrezkaapp.objects.*
 import com.paxti.hdrezkaapp.utils.ExceptionHelper.catchException
 import com.paxti.hdrezkaapp.views.viewsInterface.FilmView
