@@ -3,20 +3,31 @@ apply plugin: 'kotlin-android'
 apply plugin: 'com.google.gms.google-services' // Google services Gradle plugin
 
 // Apply the Crashlytics Gradle plugin
-apply plugin:  'com.google.firebase.crashlytics'
+apply plugin: 'com.google.firebase.crashlytics'
+
+apply plugin: 'kotlin-kapt'
 
 android {
-    compileSdkVersion 31
     buildToolsVersion "30.0.3"
 
     defaultConfig {
         applicationId "com.paxti.hdrezkaapp"
-        minSdkVersion 23
-        targetSdkVersion 31
-        versionCode 36 // 25 for 2.1.1
-        versionName "2.1.4next"
+        minSdkVersion 26
+        targetSdkVersion 33
+        compileSdk 33
+        versionCode 37 // 25 for 2.1.1
+        versionName "2.1.5"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments += [
+                        "room.schemaLocation":"$projectDir/schemas".toString(),
+                        "room.incremental":"true"
+                ]
+            }
+        }
     }
 
     buildTypes {
@@ -36,6 +47,7 @@ android {
     buildFeatures {
         viewBinding true
     }
+    namespace 'com.paxti.hdrezkaapp'
 }
 
 dependencies {
@@ -83,4 +95,10 @@ dependencies {
     implementation 'io.github.nikartm:image-support:2.0.0'
     implementation 'com.jakewharton:process-phoenix:2.1.2'
     // implementation 'jp.wasabeef:recyclerview-animators:4.0.2'
+
+    def room_version = "2.3.0"
+    implementation "androidx.room:room-runtime:$room_version"
+    annotationProcessor "androidx.room:room-compiler:$room_version"
+    // To use Kotlin annotation processing tool (kapt)
+    kapt "androidx.room:room-compiler:$room_version"
 }

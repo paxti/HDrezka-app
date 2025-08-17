@@ -11,7 +11,7 @@ data class WatchLaterEntity (
     @ColumnInfo(name = "date") val date: String,
     @ColumnInfo(name = "filmLInk") val filmLInk: String,
     @ColumnInfo(name = "name") val name: String,
-    @ColumnInfo(name = "info") val info: String,
+    @ColumnInfo(name = "info") val info: String?,
     @ColumnInfo(name = "additionalInfo") val additionalInfo: String?,
     @ColumnInfo(name = "posterPath") val posterPath: String
 )

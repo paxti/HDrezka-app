@@ -16,12 +16,13 @@ import com.paxti.hdrezkaapp.R
 import com.paxti.hdrezkaapp.objects.Film
 import com.paxti.hdrezkaapp.objects.WatchLater
 import com.paxti.hdrezkaapp.utils.Highlighter.zoom
+import com.paxti.hdrezkaapp.utils.UrlUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class WatchLaterRecyclerViewAdapter(private val context: Context, private val watchLaterList: ArrayList<WatchLater>, private val openFilm: (film: Film) -> Unit, private val deleteHandler: (id: String) -> Unit) :
+class WatchLaterRecyclerViewAdapter(private val context: Context, private val watchLaterList: ArrayList<WatchLater>, private val openFilm: (film: Film) -> Unit) :
     RecyclerView.Adapter<WatchLaterRecyclerViewAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -64,14 +65,18 @@ class WatchLaterRecyclerViewAdapter(private val context: Context, private val wa
         holder.infoView.text = watchLaterItem.additionalInfo
 
         holder.layout.setOnClickListener {
-            openFilm(Film(watchLaterItem.filmLInk))
-        }
+            // Extract film ID from the URL and build complete URL
+            val filmId = UrlUtils.extractFilmIdFromUrl(watchLaterItem.filmLInk)
+            val fullUrl = UrlUtils.buildFullUrl(watchLaterItem.filmLInk)
 
-        holder.deleteView.setOnClickListener {
-            deleteHandler(watchLaterItem.id)
-            watchLaterList.removeAt(position)
-            notifyItemRemoved(position)
-            notifyItemRangeChanged(position, itemCount)
+            // Create Film object with both ID and complete URL
+            val film = if (filmId != null) {
+                Film(filmId).apply { filmLink = fullUrl }
+            } else {
+                Film(fullUrl)
+            }
+
+            openFilm(film)
         }
     }
 
@@ -84,6 +89,5 @@ class WatchLaterRecyclerViewAdapter(private val context: Context, private val wa
         val dateView: TextView = view.findViewById(R.id.watchLater_date)
         val nameView: TextView = view.findViewById(R.id.watchLater_name)
         val infoView: TextView = view.findViewById(R.id.watchLater_info)
-        val deleteView: TextView = view.findViewById(R.id.watchLater_delete)
     }
 }

@@ -70,7 +70,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="hdrezka.tv"
+                    android:host="hdrezka.website"
                     android:pathPrefix="/"
                     android:scheme="http" />
                 <data

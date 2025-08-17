@@ -134,40 +134,38 @@ object Highlighter {
     }
 
     fun highlightText(btn: View, context: Context, isBackground: Boolean = false) {
-        if (SettingsData.deviceType == DeviceType.TV) {
-            btn.setOnFocusChangeListener { v, hasFocus ->
-                if (v is TextView) {
-                    val textColorFrom: Int
-                    val textColorTo: Int
+        btn.setOnFocusChangeListener { v, hasFocus ->
+            if (v is TextView) {
+                val textColorFrom: Int
+                val textColorTo: Int
 
-                    if (hasFocus) {
-                        textColorFrom = ContextCompat.getColor(context, R.color.white)
-                        textColorTo = ContextCompat.getColor(context, R.color.primary_red)
-                        if (isBackground && (v.getBackground() is TransitionDrawable)) {
-                            (v.getBackground() as TransitionDrawable).startTransition(ANIM_DURATION.toInt())
-                        }
-                    } else {
-                        textColorFrom = ContextCompat.getColor(context, R.color.primary_red)
-                        textColorTo = ContextCompat.getColor(context, R.color.white)
-                        if (isBackground && (v.getBackground() is TransitionDrawable)) {
-                            (v.getBackground() as TransitionDrawable).reverseTransition(ANIM_DURATION.toInt())
-                        }
+                if (hasFocus) {
+                    textColorFrom = ContextCompat.getColor(context, R.color.white)
+                    textColorTo = ContextCompat.getColor(context, R.color.primary_red)
+                    if (isBackground && (v.getBackground() is TransitionDrawable)) {
+                        (v.getBackground() as TransitionDrawable).startTransition(ANIM_DURATION.toInt())
                     }
-
-                    val colorAnimationText = ValueAnimator.ofObject(ArgbEvaluator(), textColorFrom, textColorTo)
-                    colorAnimationText.duration = ANIM_DURATION
-                    colorAnimationText.addUpdateListener { animator ->
-                        v.setTextColor(animator.animatedValue as Int)
-                        for (drawable in v.compoundDrawables) {
-                            if (drawable != null) {
-                                drawable.colorFilter = PorterDuffColorFilter(animator.animatedValue as Int, PorterDuff.Mode.SRC_IN)
-                            }
-                        }
-
-
+                } else {
+                    textColorFrom = ContextCompat.getColor(context, R.color.primary_red)
+                    textColorTo = ContextCompat.getColor(context, R.color.white)
+                    if (isBackground && (v.getBackground() is TransitionDrawable)) {
+                        (v.getBackground() as TransitionDrawable).reverseTransition(ANIM_DURATION.toInt())
                     }
-                    colorAnimationText.start()
                 }
+
+                val colorAnimationText = ValueAnimator.ofObject(ArgbEvaluator(), textColorFrom, textColorTo)
+                colorAnimationText.duration = ANIM_DURATION
+                colorAnimationText.addUpdateListener { animator ->
+                    v.setTextColor(animator.animatedValue as Int)
+                    for (drawable in v.compoundDrawables) {
+                        if (drawable != null) {
+                            drawable.colorFilter = PorterDuffColorFilter(animator.animatedValue as Int, PorterDuff.Mode.SRC_IN)
+                        }
+                    }
+
+
+                }
+                colorAnimationText.start()
             }
         }
     }

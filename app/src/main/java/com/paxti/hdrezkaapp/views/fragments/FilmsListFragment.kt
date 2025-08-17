@@ -83,11 +83,11 @@ open class FilmsListFragment : Fragment(), FilmsListView {
         onFilmClickedListener = listener
     }
 
-    override fun setFilms(films: ArrayList<Film>) {
+    override fun setFilms(films: MutableList<Film>) {
         recyclerView.adapter = FilmsListRecyclerViewAdapter(films, ::listCallback, ::listEndCallback)
     }
 
-    override fun redrawFilms(from: Int, count: Int, action: AdapterAction, films: ArrayList<Film>) {
+    override fun redrawFilms(from: Int, count: Int, action: AdapterAction, films: MutableList<Film>) {
         when (action) {
             AdapterAction.ADD -> recyclerView.adapter?.notifyItemRangeInserted(from, count)
             AdapterAction.UPDATE -> recyclerView.adapter?.notifyItemRangeChanged(from, count)

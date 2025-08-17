@@ -21,7 +21,6 @@ import android.text.TextPaint
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
 import android.util.DisplayMetrics
-import android.util.Log
 import android.util.TypedValue
 import android.view.*
 import android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
@@ -41,6 +40,7 @@ import androidx.core.widget.ImageViewCompat
 import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.LiveData
 import androidx.recyclerview.widget.RecyclerView
 import com.chivorn.smartmaterialspinner.SmartMaterialSpinner
 import com.paxti.hdrezkaapp.R
@@ -63,17 +63,22 @@ import com.paxti.hdrezkaapp.views.tv.player.PlayerActivity
 import com.paxti.hdrezkaapp.views.viewsInterface.FilmView
 import com.github.aakira.expandablelayout.ExpandableLinearLayout
 import com.google.android.exoplayer2.metadata.icy.IcyHeaders
+import com.google.android.exoplayer2.util.Log
+import com.paxti.hdrezkaapp.db.BookmarkEntity
 import com.paxti.hdrezkaapp.db.WatchLaterEntity
 import com.paxti.hdrezkaapp.models.AppDatabase
 import com.squareup.picasso.Callback
 import com.squareup.picasso.Picasso
 import com.willy.ratingbar.ScaleRatingBar
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Date
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.withContext
 
 
 class FilmFragment : Fragment(), FilmView {
@@ -164,7 +169,7 @@ class FilmFragment : Fragment(), FilmView {
 
         filmPresenter = FilmPresenter(this, (arguments?.getSerializable(FILM_ARG) as Film?)!!)
 
-        filmPresenter.initFilmData()
+        filmPresenter.initFilmData(db)
 
         initFlags()
 
@@ -311,12 +316,27 @@ class FilmFragment : Fragment(), FilmView {
             openPlayBtn.setOnClickListener {
 
                 GlobalScope.launch {
-                    var film = filmPresenter.film
-                    val current = LocalDateTime.now()
-                    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                    val formatted = current.format(formatter)
-                    var filmToSave: WatchLaterEntity = WatchLaterEntity(film.filmId.toString(), formatted, film.filmLink!!, film.origTitle!!, film.subInfo!!, film.additionalInfo, film.posterPath!!)
-                    db.watchLaterDAO()?.insertWatchLater(filmToSave)
+                       withContext(Dispatchers.IO) {
+                           var film = filmPresenter.film
+                           val current = LocalDateTime.now()
+                           val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                           val formatted = current.format(formatter)
+
+                            // Store relative paths instead of full URLs
+                           val relativeFilmLink = UrlUtils.getRelativePathFromUrl(film.filmLink!!)
+                           val relativePosterPath = UrlUtils.getRelativePosterPath(film.posterPath!!)
+
+                           var filmToSave: WatchLaterEntity = WatchLaterEntity(
+                               film.filmId.toString(),
+                               formatted,
+                               relativeFilmLink,
+                               film.origTitle!!,
+                               film.subInfo,
+                               film.additionalInfo,
+                               relativePosterPath
+                           )
+                           db.watchLaterDAO()?.insertWatchLater(filmToSave)
+                    }
                 }
 
                 when (PackageManager.PERMISSION_GRANTED) {
@@ -736,64 +756,97 @@ class FilmFragment : Fragment(), FilmView {
     }
 
     override fun setBookmarksList(bookmarks: ArrayList<Bookmark>) {
-        val bookmarksBtn: View = currentView.findViewById(R.id.fragment_film_btn_bookmark)
-        if (UserData.isLoggedIn == true) {
-            val data: Array<String?> = arrayOfNulls(bookmarks.size)
-            val checkedItems = BooleanArray(bookmarks.size)
+        var isMoveBookmarked: Boolean? = false;
+        val film = filmPresenter.film
+        val bookmarksBtn: TextView = currentView.findViewById(R.id.fragment_film_btn_bookmark)
 
-            for ((index, bookmark) in bookmarks.withIndex()) {
-                data[index] = bookmark.name
-                checkedItems[index] = bookmark.isChecked == true
+        // Clear any existing click listeners to prevent duplicates
+        bookmarksBtn.setOnClickListener(null)
+
+        // Add a flag to prevent multiple concurrent executions
+        var isProcessing = false
+
+        GlobalScope.launch {
+            withContext(Dispatchers.IO) {
+                isMoveBookmarked = db.bookmarkDAO()?.isInList(film.filmId.toString())
             }
 
-            activity?.let {
-                val builder = context?.let { it1 -> DialogManager.getDialog(it1, R.string.choose_bookmarks) }
-                builder?.setMultiChoiceItems(data, checkedItems) { dialog, which, isChecked ->
-                    filmPresenter.setBookmark(bookmarks[which].catId)
-                    updateBookmarksFilmsPager()
-                    checkedItems[which] = isChecked
-                }
-                builder?.setPositiveButton(getString(R.string.ok)) { dialog, id ->
-                    dialog.dismiss()
-                }
+            withContext(Dispatchers.Main) {
+                if (isMoveBookmarked == true) {
+                    bookmarksBtn.text = "Remove from bookmarks"
+                    bookmarksBtn.setOnClickListener {
+                        if (isProcessing) return@setOnClickListener
+                        isProcessing = true
 
-                // new catalog btn
-                val catalogDialogBuilder = context?.let { it1 -> DialogManager.getDialog(it1, R.string.new_cat) }
+                        try {
+                            CoroutineScope(IO).launch {
+                                db.bookmarkDAO()?.remove(film.filmId.toString())
+                                withContext(Dispatchers.Main) {
+                                    isProcessing = false
+                                }
+                            }
+                            Toast.makeText(context, "Removed from the list of bookmarks", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            isProcessing = false
+                        }
+                    }
+                } else {
+                    bookmarksBtn.text = "Add to bookmarks"
+                    bookmarksBtn.setOnClickListener {
+                        if (isProcessing) return@setOnClickListener
+                        isProcessing = true
 
-                val dialogCatLayout: LinearLayout = layoutInflater.inflate(R.layout.dialog_new_cat, null) as LinearLayout
-                val input: EditText = dialogCatLayout.findViewById(R.id.dialog_cat_input)
+                        try {
+                            // Check again if bookmark already exists before adding
+                            CoroutineScope(IO).launch {
+                                val alreadyExists = db.bookmarkDAO()?.isInList(film.filmId.toString()) ?: false
+                                if (alreadyExists) {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(context, "Already in bookmarks", Toast.LENGTH_SHORT).show()
+                                        isProcessing = false
+                                    }
+                                    return@launch
+                                }
 
-                catalogDialogBuilder?.setView(dialogCatLayout)
-                catalogDialogBuilder?.setPositiveButton(getString(R.string.ok)) { dialog, id ->
-                    filmPresenter.createNewCatalogue(input.text.toString())
-                    Toast.makeText(requireContext(), getString(R.string.created_cat), Toast.LENGTH_SHORT).show()
-                }
-                catalogDialogBuilder?.setNegativeButton(getString(R.string.cancel)) { dialog, which ->
-                    dialog.cancel()
-                }
+                                val current = LocalDateTime.now()
+                                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                                val formatted = current.format(formatter)
 
-                val n = catalogDialogBuilder?.create()
+                                // Store relative paths instead of full URLs
+                                val relativeFilmLink = UrlUtils.getRelativePathFromUrl(film.filmLink!!)
+                                val relativePosterPath = UrlUtils.getRelativePosterPath(film.posterPath!!)
 
-                builder?.setNeutralButton(getString(R.string.new_cat)) { dialog, id ->
-                    n?.show()
-                }
+                                val filmToSave: BookmarkEntity = BookmarkEntity(
+                                    film.filmId.toString(),
+                                    "test",
+                                    1,
+                                    formatted,
+                                    relativeFilmLink,
+                                    film.origTitle!!,
+                                    film.subInfo!!,
+                                    film.additionalInfo,
+                                    relativePosterPath,
+                                    false
+                                )
 
-                if (bookmarksDialog != null) {
-                    bookmarksDialog?.dismiss()
-                }
-                bookmarksDialog = builder?.create()
-                bookmarksBtn.setOnClickListener {
-                    bookmarksDialog?.show()
+                                db.bookmarkDAO()?.insert(filmToSave)
+
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "Added to list of bookmarks", Toast.LENGTH_SHORT).show()
+                                    isProcessing = false
+                                }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            isProcessing = false
+                        }
+                    }
                 }
             }
-
-            Highlighter.highlightText(bookmarksBtn, requireContext())
-        } else {
-            /*       if (SettingsData.deviceType != DeviceType.TV) {
-                       currentView.findViewById<LinearLayout>(R.id.fragment_film_ll_title_layout).layoutParams = LinearLayout.LayoutParams(0, WindowManager.LayoutParams.WRAP_CONTENT, 0.85f)
-                   }*/
-            bookmarksBtn.visibility = View.GONE
         }
+
+        Highlighter.highlightText(bookmarksBtn, requireContext())
     }
 
     override fun setShareBtn(title: String, link: String) {
@@ -864,17 +917,17 @@ class FilmFragment : Fragment(), FilmView {
                 if (commentsAdded) {
                     if (isKeyboard) imm.hideSoftInputFromWindow(commentEditor?.textArea?.windowToken, 0)
                     commentEditor?.editorContainer?.animate()?.translationY(commentEditor?.editorContainer?.height!!.toFloat())?.setListener(object : Animator.AnimatorListener {
-                        override fun onAnimationStart(animation: Animator?) {
+                        override fun onAnimationStart(animation: Animator) {
                         }
 
-                        override fun onAnimationEnd(animation: Animator?) {
+                        override fun onAnimationEnd(animation: Animator) {
                             commentEditor?.editorContainer?.visibility = View.GONE
                         }
 
-                        override fun onAnimationCancel(animation: Animator?) {
+                        override fun onAnimationCancel(animation: Animator) {
                         }
 
-                        override fun onAnimationRepeat(animation: Animator?) {
+                        override fun onAnimationRepeat(animation: Animator) {
                         }
                     })
                 }
@@ -883,16 +936,16 @@ class FilmFragment : Fragment(), FilmView {
                 commentEditor?.textArea?.requestFocus()
                 if (isKeyboard) imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0)
                 commentEditor?.editorContainer?.animate()?.translationY(0F)?.setListener(object : Animator.AnimatorListener {
-                    override fun onAnimationStart(animation: Animator?) {
+                    override fun onAnimationStart(animation: Animator) {
                     }
 
-                    override fun onAnimationEnd(animation: Animator?) {
+                    override fun onAnimationEnd(animation: Animator) {
                     }
 
-                    override fun onAnimationCancel(animation: Animator?) {
+                    override fun onAnimationCancel(animation: Animator) {
                     }
 
-                    override fun onAnimationRepeat(animation: Animator?) {
+                    override fun onAnimationRepeat(animation: Animator) {
                     }
                 })
             }
@@ -1271,3 +1324,4 @@ class FilmFragment : Fragment(), FilmView {
         }
     }
 }
+

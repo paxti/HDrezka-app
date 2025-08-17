@@ -27,7 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 
-class FilmsListRecyclerViewAdapter(private val films: ArrayList<Film>, private val openFilm: (film: Film) -> Unit, private val onListEndTrigger: (() -> Unit)?) :
+class FilmsListRecyclerViewAdapter(private val films: MutableList<Film>, private val openFilm: (film: Film) -> Unit, private val onListEndTrigger: (() -> Unit)?) :
     RecyclerView.Adapter<FilmsListRecyclerViewAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {

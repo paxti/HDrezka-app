@@ -83,7 +83,7 @@ class WatchLaterFragment : Fragment(), WatchLaterView {
     }
 
     override fun setWatchLaterList(list: ArrayList<WatchLater>) {
-        listView.adapter = WatchLaterRecyclerViewAdapter(requireContext(), list, ::listCallback, ::deleteWatchLater)
+        listView.adapter = WatchLaterRecyclerViewAdapter(requireContext(), list, ::listCallback)
         progressBar.visibility = View.GONE
 
         NavigationMenu.isLocked = false
@@ -93,9 +93,6 @@ class WatchLaterFragment : Fragment(), WatchLaterView {
         FragmentOpener.openWithData(this, fragmentListener, film, "film")
     }
 
-    private fun deleteWatchLater(id: String) {
-        watchLaterPresenter.deleteWatchLaterItem(id)
-    }
 
     override fun showMsg(type: IMsg.MsgType) {
         msgView.visibility = View.VISIBLE

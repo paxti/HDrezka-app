@@ -1,5 +1,6 @@
 package com.paxti.hdrezkaapp.views.fragments
 
+import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,7 +16,7 @@ import com.paxti.hdrezkaapp.constants.BookmarkFilterType
 import com.paxti.hdrezkaapp.interfaces.IConnection
 import com.paxti.hdrezkaapp.interfaces.IMsg
 import com.paxti.hdrezkaapp.interfaces.IProgressState
-import com.paxti.hdrezkaapp.objects.UserData
+import com.paxti.hdrezkaapp.models.AppDatabase
 import com.paxti.hdrezkaapp.presenters.BookmarksPresenter
 import com.paxti.hdrezkaapp.utils.ExceptionHelper
 import com.paxti.hdrezkaapp.views.viewsInterface.BookmarksView
@@ -28,8 +29,12 @@ class BookmarksFragment : Fragment(), BookmarksView, FilmListCallView, AdapterVi
     private lateinit var msgView: TextView
     private lateinit var filmsListFragment: FilmsListFragment
     private lateinit var progressBarSpinnerLayout: ProgressBar
-    private var checked = 0
+    private lateinit var db: AppDatabase
 
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        db = AppDatabase.getDatabase(context)
+    }
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         currentView = inflater.inflate(R.layout.fragment_bookmarks, container, false)
 
@@ -42,23 +47,13 @@ class BookmarksFragment : Fragment(), BookmarksView, FilmListCallView, AdapterVi
         spinnersLayout.visibility = View.GONE
         progressBarSpinnerLayout = currentView.findViewById(R.id.fragment_bookmarks_pb_spinner_loading)
 
-        if (UserData.isLoggedIn == true) {
-            setSpinnerData(R.id.fragment_bookmarks_sp_sort)
-            setSpinnerData(R.id.fragment_bookmarks_sp_show)
-        }
+        setSpinnerData(R.id.fragment_bookmarks_sp_sort)
         return currentView
     }
 
     override fun onFilmsListCreated() {
         bookmarksPresenter = BookmarksPresenter(this, filmsListFragment)
-
-        if (UserData.isLoggedIn == true) {
-            bookmarksPresenter.initBookmarks()
-        } else {
-            progressBarSpinnerLayout.visibility = View.GONE
-            bookmarksPresenter.setMsg(IMsg.MsgType.NOT_AUTHORIZED)
-        }
-
+        bookmarksPresenter.initBookmarks(db)
         super.onStart()
     }
 
@@ -72,7 +67,6 @@ class BookmarksFragment : Fragment(), BookmarksView, FilmListCallView, AdapterVi
         activity?.let {
             when (spinnerId) {
                 R.id.fragment_bookmarks_sp_sort -> spinner.item = resources.getStringArray(R.array.sort).toMutableList()
-                R.id.fragment_bookmarks_sp_show -> spinner.item = resources.getStringArray(R.array.show).toMutableList()
             }
             spinner.setSelection(0)
             spinner.onItemSelectedListener = this
@@ -82,13 +76,6 @@ class BookmarksFragment : Fragment(), BookmarksView, FilmListCallView, AdapterVi
     override fun setBookmarksSpinner(bookmarksNames: ArrayList<String>) {
         currentView.findViewById<ProgressBar>(R.id.fragment_bookmarks_pb_spinner_loading).visibility = View.GONE
         spinnersLayout.visibility = View.VISIBLE
-
-        activity?.let {
-            val bookmarksSpinner: SmartMaterialSpinner<String> = currentView.findViewById(R.id.fragment_bookmarks_sp_list)
-            bookmarksSpinner.item = bookmarksNames
-            bookmarksSpinner.onItemSelectedListener = this
-            bookmarksSpinner.setSelection(0)
-        }
     }
 
     override fun setNoBookmarks() {
@@ -101,23 +88,7 @@ class BookmarksFragment : Fragment(), BookmarksView, FilmListCallView, AdapterVi
     override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
         when (parent.id) {
             R.id.fragment_bookmarks_sp_sort -> {
-                if (checked >= 2) {
-                    bookmarksPresenter.setFilter(bookmarksPresenter.sortFilters[position], BookmarkFilterType.SORT)
-                } else {
-                    checked++
-                }
-            }
-            R.id.fragment_bookmarks_sp_show -> {
-                if (checked >= 2) {
-                    bookmarksPresenter.setFilter(bookmarksPresenter.showFilters[position], BookmarkFilterType.SHOW)
-                } else {
-                    checked++
-                }
-            }
-            R.id.fragment_bookmarks_sp_list -> {
-                if (bookmarksPresenter.bookmarks != null && bookmarksPresenter.bookmarks!!.size > 0) {
-                    bookmarksPresenter.bookmarks?.get(position)?.let { bookmarksPresenter.setBookmark(it) }
-                }
+                bookmarksPresenter.setFilter(bookmarksPresenter.sortFilters[position], BookmarkFilterType.SORT)
             }
         }
     }

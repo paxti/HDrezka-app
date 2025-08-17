@@ -9,6 +9,7 @@ import com.paxti.hdrezkaapp.db.toWatchLater
 import com.paxti.hdrezkaapp.models.AppDatabase
 import com.paxti.hdrezkaapp.objects.WatchLater
 import com.paxti.hdrezkaapp.utils.ExceptionHelper.catchException
+import com.paxti.hdrezkaapp.utils.UrlUtils
 import com.paxti.hdrezkaapp.views.viewsInterface.WatchLaterView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -73,7 +74,9 @@ class WatchLaterPresenter(private val watchLaterView: WatchLaterView) {
         for ((index, item) in dataToLoad.withIndex()) {
             GlobalScope.launch {
                 try {
-                    item.posterPath = FilmModel.getFilmPosterByLink(item.filmLInk)
+                    // Convert relative URL to complete URL if needed
+                    val fullUrl = UrlUtils.buildFullUrl(item.filmLInk)
+                    item.posterPath = FilmModel.getFilmPosterByLink(fullUrl)
 
                     if (index == dataToLoad.size - 1) {
                         withContext(Dispatchers.Main) {
@@ -84,8 +87,19 @@ class WatchLaterPresenter(private val watchLaterView: WatchLaterView) {
                         }
                     }
                 } catch (e: Exception) {
-                    catchException(e, watchLaterView)
-                    return@launch
+                    // Log the error but don't crash the app
+                    Log.e("WatchLaterPresenter", "Failed to load poster for: ${item.filmLInk}", e)
+                    // Set a default poster path or leave it null
+                    item.posterPath = null
+
+                    if (index == dataToLoad.size - 1) {
+                        withContext(Dispatchers.Main) {
+                            val itemsCount = activeWatchLaterList.size
+                            activeWatchLaterList.addAll(dataToLoad)
+                            watchLaterView.redrawWatchLaterList(itemsCount, dataToLoad.size, AdapterAction.ADD)
+                            watchLaterView.setProgressBarState(IProgressState.StateType.LOADED)
+                        }
+                    }
                 }
             }
         }
@@ -93,24 +107,5 @@ class WatchLaterPresenter(private val watchLaterView: WatchLaterView) {
 
     fun updateList() {
         activeWatchLaterList.clear()
-    }
-
-    fun deleteWatchLaterItem(id: String) {
-        GlobalScope.launch {
-            try {
-                db.watchLaterDAO()?.removeFromWatchLater(id);
-                withContext(Dispatchers.Main) {
-                    val onItemsDownload = 4
-
-                    if (activeWatchLaterList.size <= onItemsDownload) {
-                        getNextWatchLater()
-                    }
-
-                }
-            } catch (e: Exception) {
-                catchException(e, watchLaterView)
-                return@launch
-            }
-        }
     }
 }

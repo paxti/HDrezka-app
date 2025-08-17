@@ -86,14 +86,14 @@ class FilmsListGridFragment : VerticalGridSupportFragment(), OnItemViewSelectedL
         }
     }
 
-    override fun setFilms(films: ArrayList<Film>) {
+    override fun setFilms(films: MutableList<Film>) {
         for (film in films) {
             mAdapter?.add(film)
         }
         startEntranceTransition()
     }
 
-    override fun redrawFilms(from: Int, count: Int, action: AdapterAction, films: ArrayList<Film>) {
+    override fun redrawFilms(from: Int, count: Int, action: AdapterAction, films: MutableList<Film>) {
         if (films.size > 0 && action == AdapterAction.ADD) {
             mAdapter?.size()?.let { mAdapter?.addAll(it, films) }
         } else if (films.size == 0 && action == AdapterAction.DELETE) {

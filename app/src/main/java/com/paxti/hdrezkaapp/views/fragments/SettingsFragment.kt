@@ -13,6 +13,7 @@ import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
@@ -22,6 +23,7 @@ import com.paxti.hdrezkaapp.constants.AuthType
 import com.paxti.hdrezkaapp.constants.DeviceType
 import com.paxti.hdrezkaapp.constants.GridLayoutSizes
 import com.paxti.hdrezkaapp.interfaces.IConnection
+import com.paxti.hdrezkaapp.models.AppDatabase
 import com.paxti.hdrezkaapp.objects.SettingsData
 import com.paxti.hdrezkaapp.objects.UserData
 import com.paxti.hdrezkaapp.presenters.UserPresenter
@@ -29,6 +31,9 @@ import com.paxti.hdrezkaapp.utils.DialogManager
 import com.paxti.hdrezkaapp.utils.ExceptionHelper
 import com.paxti.hdrezkaapp.views.MainActivity
 import com.paxti.hdrezkaapp.views.viewsInterface.UserView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 
 class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedPreferenceChangeListener, UserView {
@@ -86,6 +91,18 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
 
         findPreference<Preference?>("changeToMobile")?.setOnPreferenceClickListener {
             showUiModeChangeDialog(DeviceType.MOBILE)
+            true
+        }
+
+        // Add clear bookmarks functionality
+        findPreference<Preference?>("clearBookmarks")?.setOnPreferenceClickListener {
+            showClearBookmarksConfirmation()
+            true
+        }
+
+        // Add clear all database functionality
+        findPreference<Preference?>("clearDatabase")?.setOnPreferenceClickListener {
+            showClearDatabaseConfirmation()
             true
         }
 
@@ -392,5 +409,76 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         mActivity?.let {
             (it as MainActivity).refreshActivity()
         }
+    }
+
+    private fun showClearBookmarksConfirmation() {
+        val builder = AlertDialog.Builder(requireContext())
+        builder.setTitle("Clear Bookmarks")
+        builder.setMessage("Are you sure you want to clear all bookmarks? This action cannot be undone.")
+        builder.setPositiveButton("Clear") { dialog, which ->
+            // Clear the bookmarks from database
+            lifecycleScope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val database = AppDatabase.getDatabase(requireContext())
+                        database.bookmarkDAO()?.clearAll()
+                    }
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(requireContext(), "All bookmarks cleared", Toast.LENGTH_SHORT).show()
+                        // Refresh the bookmarks page if it's open
+                        mActivity?.let { activity ->
+                            if (activity is MainActivity) {
+                                // This will trigger a refresh of the bookmarks fragment
+                                activity.updatePager()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(requireContext(), "Failed to clear bookmarks: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+        builder.setNegativeButton("Cancel") { dialog, which ->
+            dialog.dismiss()
+        }
+        builder.show()
+    }
+
+    private fun showClearDatabaseConfirmation() {
+        val builder = AlertDialog.Builder(requireContext())
+        builder.setTitle("Clear Database")
+        builder.setMessage("Are you sure you want to clear all data? This action cannot be undone.")
+        builder.setPositiveButton("Clear") { dialog, which ->
+            // Clear the database
+            lifecycleScope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val database = AppDatabase.getDatabase(requireContext())
+                        // Clear all tables or specific tables as needed
+                        database.clearAllTables()
+                    }
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(requireContext(), "All data cleared", Toast.LENGTH_SHORT).show()
+                        // Optionally, you can navigate the user to the main screen or exit the app
+                        mActivity?.let { activity ->
+                            if (activity is MainActivity) {
+                                // This will trigger a refresh of the main activity
+                                activity.updatePager()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(requireContext(), "Failed to clear data: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+        builder.setNegativeButton("Cancel") { dialog, which ->
+            dialog.dismiss()
+        }
+        builder.show()
     }
 }

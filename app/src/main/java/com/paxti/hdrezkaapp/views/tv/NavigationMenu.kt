@@ -387,7 +387,7 @@ class NavigationMenu : Fragment() {
             view.requestLayout()
         }
         anim.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator?) {
+            override fun onAnimationEnd(animation: Animator) {
                 // At the end of animation, set the height to wrap content
                 // This fix is for long views that are not shown on screen
                 animationEnd()

@@ -155,6 +155,18 @@
             app:summary="@string/useragent_hint"
             app:title="@string/useragent_title" />
 
+        <Preference
+            android:key="clearBookmarks"
+            android:layout="@layout/custom_text_preference"
+            app:summary="Clear all saved bookmarks from local storage"
+            app:title="Clear Bookmarks Database" />
+
+        <Preference
+            android:key="clearDatabase"
+            android:layout="@layout/custom_text_preference"
+            app:summary="Clear all bookmarks and watch history from local storage"
+            app:title="Clear All Database" />
+
     </PreferenceCategory>
 
     <Preference

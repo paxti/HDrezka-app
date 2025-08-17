@@ -1,137 +1,157 @@
 package com.paxti.hdrezkaapp.presenters
 
+import android.util.Log
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.paxti.hdrezkaapp.constants.AdapterAction
 import com.paxti.hdrezkaapp.constants.BookmarkFilterType
-import com.paxti.hdrezkaapp.interfaces.IMsg
+import com.paxti.hdrezkaapp.db.BookmarkEntity
 import com.paxti.hdrezkaapp.interfaces.IProgressState
-import com.paxti.hdrezkaapp.models.BookmarksModel
-import com.paxti.hdrezkaapp.objects.Bookmark
+import com.paxti.hdrezkaapp.models.AppDatabase
+import com.paxti.hdrezkaapp.models.FilmModel
 import com.paxti.hdrezkaapp.objects.Film
 import com.paxti.hdrezkaapp.utils.ExceptionHelper.catchException
+import com.paxti.hdrezkaapp.utils.UrlUtils
 import com.paxti.hdrezkaapp.views.viewsInterface.BookmarksView
 import com.paxti.hdrezkaapp.views.viewsInterface.FilmsListView
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class BookmarksPresenter(private val bookmarksView: BookmarksView, private val filmsListView: FilmsListView) {
-    private val FILMS_PER_PAGE = 9
-
-    var bookmarks: ArrayList<Bookmark>? = null
+class BookmarksPresenter(private val bookmarksView: BookmarksView, private val filmsListView: FilmsListView): ViewModel() {
     val sortFilters: ArrayList<String> = ArrayList(arrayListOf("added", "year", "popular"))
-    val showFilters: ArrayList<String> = ArrayList(arrayListOf("0", "1", "2", "3", "82"))
 
-    private var selectedBookmark: Bookmark? = null
     private var selectedSortFilter: String? = null
     private var selectedShowFilter: String? = null
-    private var curPage = 1
-    private var loadedFilms: ArrayList<Film> = ArrayList()
-    private var activeFilms: ArrayList<Film> = ArrayList()
+    private var loadedFilms: MutableList<Film> = mutableListOf()
+    private var bookmarks: MutableList<BookmarkEntity> = mutableListOf()
     private var isLoading: Boolean = false
+    private lateinit var db: AppDatabase
 
-    fun initBookmarks() {
-        GlobalScope.launch {
+    init {
+        // Initialize RecyclerView with empty adapter to prevent "No adapter attached" error
+        filmsListView.setFilms(loadedFilms)
+    }
+
+    fun initBookmarks(database: AppDatabase) {
+        db = database // Store the database reference
+        bookmarksView.setBookmarksSpinner(ArrayList())
+        filmsListView.setProgressBarState(IProgressState.StateType.LOADING)
+
+        // Clear any existing data first
+        loadedFilms.clear()
+        bookmarks.clear()
+
+        viewModelScope.launch {
             try {
-                bookmarks = BookmarksModel.getBookmarksList()
+                // Only fetch bookmark metadata, don't load film data yet
+                withContext(Dispatchers.IO) {
+                    bookmarks = (database.bookmarkDAO()?.getAll() ?: emptyList()).toMutableList()
+                    Log.d("BookmarksPresenter", "initBookmarks - Found ${bookmarks.size} bookmarks in database")
+                }
 
                 withContext(Dispatchers.Main) {
-                    if (bookmarks != null && bookmarks!!.size > 0) {
-                        val names: ArrayList<String> = ArrayList()
-                        for (bookmark in bookmarks!!) {
-                            names.add("${bookmark.name} (${bookmark.amount})")
-                        }
-                        bookmarksView.setBookmarksSpinner(names)
-                        filmsListView.setFilms(activeFilms)
+                    if (bookmarks.isNotEmpty()) {
+                        // Don't load films here - let getNextFilms handle it
+                        // Just initialize the adapter with empty list
+                        filmsListView.setFilms(loadedFilms)
+                        // Now load the first batch of films
+                        getNextFilms()
                     } else {
                         bookmarksView.setNoBookmarks()
+                        filmsListView.setProgressBarState(IProgressState.StateType.LOADED)
                     }
                 }
             } catch (e: Exception) {
+                Log.e("BookmarksPresenter", "Error in initBookmarks", e)
                 catchException(e, bookmarksView)
-                return@launch
             }
         }
     }
 
-    fun setBookmark(bookmark: Bookmark) {
-        selectedBookmark = bookmark
-        filmsListView.setProgressBarState(IProgressState.StateType.LOADING)
-        reset()
-        getNextFilms()
+    private suspend fun fetchBookmark(database: AppDatabase) = withContext(Dispatchers.IO) {
+        // This method is no longer used - keeping for compatibility
+        // All bookmark loading is now handled by initBookmarks + getNextFilms
     }
 
     private fun reset() {
-        curPage = 1
-        val itemsCount = activeFilms.size
-        activeFilms.clear()
         loadedFilms.clear()
-        filmsListView.redrawFilms(0, itemsCount, AdapterAction.DELETE, ArrayList())
+        filmsListView.redrawFilms(0, loadedFilms.size, AdapterAction.DELETE, ArrayList())
     }
 
-    fun getNextFilms() {
+
+    fun getNextFilms(filter: String = sortFilters[0], database: AppDatabase? = null) {
         if (isLoading) {
+            Log.d("BookmarksPresenter", "getNextFilms called but already loading, skipping")
             return
         }
 
-        isLoading = true
-        if (loadedFilms.size > 0) {
+        Log.d("BookmarksPresenter", "getNextFilms called - loadedFilms.size: ${loadedFilms.size}, bookmarks.size: ${bookmarks.size}")
+
+        // Check if we have more bookmarks to load
+        if (bookmarks.isNotEmpty() && loadedFilms.size < bookmarks.size) {
+            isLoading = true
+            Log.d("BookmarksPresenter", "Loading next batch of films from ${loadedFilms.size} to ${(loadedFilms.size + 10).coerceAtMost(bookmarks.size)}")
+
             try {
-                //FilmModel.getFilmsData(loadedFilms, FILMS_PER_PAGE, ::addFilms)
-                addFilms(loadedFilms)
-                loadedFilms.clear()
+                bookmarksView.hideMsg()
+                filmsListView.setProgressBarState(IProgressState.StateType.LOADING)
+                viewModelScope.launch {
+                    val start = loadedFilms.size
+                    val end = (start + 10).coerceAtMost(bookmarks.size) // Load 10 at a time
+                    val newFilms = mutableListOf<Film>()
+
+                    withContext(Dispatchers.IO) {
+                        for (i in start until end) {
+                            // Build full URL using current provider
+                            val fullUrl = UrlUtils.buildFullUrl(bookmarks[i].filmLInk)
+                            val film = Film(fullUrl)
+
+                            // Also set the poster path using current provider
+                            film.posterPath = UrlUtils.buildFullPosterUrl(bookmarks[i].posterPath)
+
+                            try {
+                                newFilms.add(FilmModel.getMainData(film))
+                            } catch (e: Exception) {
+                                // Log and skip this bookmark if it fails to load
+                                Log.e("BookmarksPresenter", "Failed to load bookmark: ${bookmarks[i].filmLInk}", e)
+                            }
+                        }
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        if (newFilms.isNotEmpty()) {
+                            // Add the new films to existing list
+                            val startIndex = loadedFilms.size
+                            loadedFilms.addAll(newFilms)
+                            filmsListView.redrawFilms(startIndex, newFilms.size, AdapterAction.ADD, newFilms)
+                            Log.d("BookmarksPresenter", "Added ${newFilms.size} new films, total now: ${loadedFilms.size}")
+                        }
+                        filmsListView.setProgressBarState(IProgressState.StateType.LOADED)
+                        isLoading = false
+                    }
+                }
             } catch (e: Exception) {
                 catchException(e, bookmarksView)
                 isLoading = false
                 return
             }
+        } else if (bookmarks.isEmpty() && database != null) {
+            // Only reinitialize if we don't have bookmarks loaded yet
+            Log.d("BookmarksPresenter", "No bookmarks loaded, initializing...")
+            initBookmarks(database)
         } else {
-            GlobalScope.launch {
-                // if page is not empty
-                selectedBookmark?.let {
-                    try {
-                        loadedFilms.addAll(BookmarksModel.getFilmsFromBookmarkPage(it.link, curPage++, selectedSortFilter, selectedShowFilter))
-                    } catch (e: Exception) {
-                        catchException(e, bookmarksView)
-                        isLoading = false
-                        return@launch
-                    }
-                }
-
-                if (loadedFilms.size > 0) {
-                    try {
-                        // FilmModel.getFilmsData(loadedFilms, FILMS_PER_PAGE, ::addFilms)
-
-                        withContext(Dispatchers.Main) {
-                            addFilms(loadedFilms)
-                            loadedFilms.clear()
-                            bookmarksView.hideMsg()
-                        }
-                    } catch (e: Exception) {
-                        catchException(e, bookmarksView)
-                        isLoading = false
-                        return@launch
-                    }
-                } else if (curPage == 2) {
-                    isLoading = false
-                    withContext(Dispatchers.Main) {
-                        bookmarksView.showMsg(IMsg.MsgType.NOTHING_FOUND)
-                    }
-                } else {
-                    isLoading = false
-                    withContext(Dispatchers.Main) {
-                        filmsListView.setProgressBarState(IProgressState.StateType.LOADED)
-                    }
-                }
-            }
+            // No more films to load
+            Log.d("BookmarksPresenter", "No more films to load - loadedFilms: ${loadedFilms.size}, bookmarks: ${bookmarks.size}")
+            filmsListView.setProgressBarState(IProgressState.StateType.LOADED)
+            isLoading = false
         }
     }
 
-    private fun addFilms(films: ArrayList<Film>) {
+    private fun addFilms(films: MutableList<Film>) {
+        // This method is now only used for initial loading in some cases
         isLoading = false
-        val itemsCount = activeFilms.size
-        activeFilms.addAll(films)
-        filmsListView.redrawFilms(itemsCount, films.size, AdapterAction.ADD, films)
+        filmsListView.setFilms(films)
         filmsListView.setProgressBarState(IProgressState.StateType.LOADED)
     }
 
@@ -142,22 +162,43 @@ class BookmarksPresenter(private val bookmarksView: BookmarksView, private val f
         }
 
         reset()
-        getNextFilms()
+        getNextFilms(filter)
     }
 
-    fun setMsg(type: IMsg.MsgType) {
-        filmsListView.setProgressBarState(IProgressState.StateType.LOADED)
-        bookmarksView.showMsg(type)
-    }
 
     fun redrawBookmarks() {
         reset()
-        bookmarks?.clear()
-        initBookmarks()
+        bookmarks.clear();
+        initBookmarks(db)
     }
 
     fun redrawBookmarksFilms() {
+        Log.d("BookmarksPresenter", "redrawBookmarksFilms called")
         reset()
-        getNextFilms()
+        // Don't call getNextFilms() here - just reset the UI
+        // The films will be loaded when needed via scroll triggers
+        filmsListView.setProgressBarState(IProgressState.StateType.LOADED)
+    }
+
+    fun clearAllBookmarks() {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    db.bookmarkDAO()?.clearAll()
+                }
+                // Clear local data and update UI
+                bookmarks.clear()
+                loadedFilms.clear()
+                withContext(Dispatchers.Main) {
+                    filmsListView.redrawFilms(0, loadedFilms.size, AdapterAction.DELETE, ArrayList())
+                    bookmarksView.setNoBookmarks()
+                    filmsListView.setProgressBarState(IProgressState.StateType.LOADED)
+                }
+                Log.d("BookmarksPresenter", "All bookmarks cleared successfully")
+            } catch (e: Exception) {
+                Log.e("BookmarksPresenter", "Failed to clear bookmarks", e)
+                catchException(e, bookmarksView)
+            }
+        }
     }
 }

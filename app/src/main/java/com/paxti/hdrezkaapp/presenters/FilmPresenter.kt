@@ -19,10 +19,12 @@ class FilmPresenter(private val filmView: FilmView, val film: Film) {
     private val loadedComments: ArrayList<Comment> = ArrayList()
     private var commentsPage = 1
     private var isCommentsLoading: Boolean = false
+    private lateinit var db: AppDatabase
 
-    fun initFilmData() {
+    fun initFilmData(database: AppDatabase) {
         GlobalScope.launch {
             try {
+                db = database
                 if (!film.hasMainData) {
                     FilmModel.getMainData(film)
                 }
@@ -117,19 +119,6 @@ class FilmPresenter(private val filmView: FilmView, val film: Film) {
         film.filmLink?.let { filmView.setPlayer(it) }
     }
 
-    fun setBookmark(bookmarkId: String) {
-        film.filmId?.let {
-            GlobalScope.launch {
-                try {
-                    BookmarksModel.postBookmark(it, bookmarkId)
-                } catch (e: Exception) {
-                    catchException(e, filmView)
-                    return@launch
-                }
-            }
-        }
-    }
-
     fun initComments() {
         film.filmId?.let {
             filmView.setCommentEditor(it.toString())
@@ -211,25 +200,6 @@ class FilmPresenter(private val filmView: FilmView, val film: Film) {
                 } catch (e: Exception) {
                     catchException(e, filmView)
                 }
-            }
-        }
-    }
-
-    fun createNewCatalogue(name: String) {
-        GlobalScope.launch {
-            try {
-                val bookmark: Bookmark = BookmarksModel.postCatalog(name)
-                film.filmId?.let { BookmarksModel.postBookmark(it, bookmark.catId) }
-                bookmark.isChecked = true
-                film.bookmarks?.add(0, bookmark)
-
-                //redraw bookmarks
-                withContext(Dispatchers.Main) {
-                    film.bookmarks?.let { filmView.setBookmarksList(it) }
-                    filmView.updateBookmarksPager()
-                }
-            } catch (e: Exception) {
-                catchException(e, filmView)
             }
         }
     }

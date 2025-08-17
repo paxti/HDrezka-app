@@ -1,5 +1,6 @@
 package com.paxti.hdrezkaapp.models
 
+import android.util.Log;
 import android.util.ArrayMap
 import android.webkit.CookieManager
 import com.paxti.hdrezkaapp.objects.Film
@@ -14,7 +15,9 @@ object NewestFilmsModel {
     val TYPES: ArrayList<String> = arrayListOf("0", "1", "2", "3", "82") // all, films, serials, multfilms, anime
 
     fun getNewestFilms(page: Int, sort: String, type: String): ArrayList<Film> {
+
         var link = SettingsData.provider + "/page/$page/?filter=$sort"
+        if (page == 1) link = SettingsData.provider + "/?filter=$sort"
 
         // fixed site bug
         if (type != "0") {
@@ -45,6 +48,7 @@ object NewestFilmsModel {
         }
 
         val doc: Document = BaseModel.getJsoup(link).get()
+        Log.d("FRESH_FILMS" , link);
         return FilmsListModel.getFilmsFromPage(doc)
     }
 

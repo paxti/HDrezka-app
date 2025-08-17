@@ -12,7 +12,7 @@ import com.paxti.hdrezkaapp.utils.FileManager
 object SettingsData {
     const val UIMODE_FILE = "uimode"
     const val APP_HEADER = "X-App-Hdrezka-App"
-    const val UPDATE_URL = "https://dl.dropboxusercontent.com/s/9dxteko8dqk3ysa/version_next.json?dl=1"
+    const val UPDATE_URL = "https://gist.githubusercontent.com/paxti/4301fa7005c088a1a4e1cefef0c150a8/raw/app_config.json"
     const val SHARE_HOST = "rzk.link"
 
     var deviceType: DeviceType? = null
@@ -73,7 +73,7 @@ object SettingsData {
         isCheckNewVersion = prefs?.getBoolean("isCheckNewVersion", true)
         isControlsOverlayAutoHide = prefs?.getBoolean("isControlsOverlayAutoHide", true)
         provider = prefs?.getString("ownProvider", context.getString(R.string.default_provider))
-        defaultSort = prefs?.getString("defaultSort", "1")?.toInt()
+        defaultSort = prefs?.getString("defaultSort", "0")?.toInt()
         isSelectSubtitle = prefs?.getBoolean("isSelectSubtitles", true)
         isInitHint = prefs?.getBoolean("initHint", false)
         prefs?.getString("userAgent", context.getString(R.string.default_useragent))?.let { updateUserAgent(it) }
